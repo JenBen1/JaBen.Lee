@@ -1,0 +1,151 @@
+linux系统下搭建mysql服务器 记录于20240317 JaBen
+（一）环境准备
+1）阿里云服务租用服务器；
+2）机器系统内存不能小于1G；
+3）Xshell/Xftp客户端.
+（二）安装
+1）下载（两种方式）
+a.下载到windows.下载地址：https://dev.mysql.com/downloads/mysql/，下载mysql-8.0.36-linux-glibc2.28-x86_64.tar.xz压缩包.
+b.linux环境下载.执行命令：wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-8.0.36-linux-glibc2.28-x86_64.tar.xz
+2）上传
+windows环境需要上传（利用Xftp）：将mysql-8.0.36-linux-glibc2.28-x86_64.tar.xz压缩包上传至opt目录.
+3）解压
+将压缩文件解压至/usr/local目录下：
+执行命令：tar -xvf  /opt/mysql-8.0.36-linux-glibc2.28-x86_64.tar.xz  -C /usr/local
+4）重命名目录
+执行命令：mv  /usr/local/mysql-8.0.36-linux-glibc2.28-x86_64.tar.xz  /usr/local/mysql
+5）删除压缩文件（防止占用内存）
+执行命令：rm -f /opt/mysql-8.0.36-linux-glibc2.28-x86_64.tar.xz
+6）创建新目录
+/usr/local/mysql 根目录下创建data文件夹
+执行命令：mkdir /usr/local/data
+（三）配置
+1）配置环境变量
+a.编辑/etc/profile,添加如下内容：
+执行命令：vi /etc/profile
+进入按i键，复制下面内容添加，按ESC,继续按shift+:,输入wq保存退出.
+export PATH=/usr/local/mysql/bin:$PATH
+b.重载/etc/profile文件（生效）：
+命令：source /etc/profile
+c.查看PATH值：echo $PATH
+2）更改配置
+a.查找mysql配置路径：mysql --help | grep 'my.cnf'
+b.执行vi /etc/my.cnf
+c.点击i键，复制并粘贴如下配置：
+[mysql]
+# 设置mysql客户端默认字符集
+default-character-set=utf8
+[mysqld]
+#设置端口
+port=3306
+socket=/tmp/mysql.sock
+#设置mysql根目录
+basedir=/usr/local/mysql
+#设置数据库的数据存放目录
+datadir=/usr/local/mysql/data
+#设置最大连接数
+max_connections=200
+#设置mysql服务端字符集，默认为latin1
+character-set-server=UTF8MB4
+#设置默认存储引擎
+default-storage-engine=INNODB
+#设置密码永不过期
+default_password_lifetime=0
+#设置 server接受的数据包大小
+max_allowed_packet=16M
+3）添加用户和用户组
+a、添加 mysql 组：命令： groupadd mysql
+b、添加 mysql 用户：命令：useradd -r -g mysql mysql
+c、变更用户和用户组权限：命令：chown -R mysql:mysql /usr/local/mysql
+（四）执行服务
+1）、初始化
+执行命令：mysqld --initialize --user=mysql
+记住初始化密码：重要
+2）开机启动
+a、复制启动脚本到资源目录
+执行命令：cp /usr/local/mysql/support-files/mysql.server /etc/rc.d/init.d/mysqld
+b、mysqld文件添加执行权限
+执行命令：chmod +x /etc/rc.d/init.d/mysqld
+`chmod +x /etc/rc.d/init.d/mysqld` 命令**用于给 MySQL 服务脚本添加可执行权限**。
+在 Linux 系统中，`chmod` 是一个用于改变文件或目录权限的命令。参数 `+x` 表示添加执行权限。`/etc/rc.d/init.d/mysqld` 是 MySQL 服务脚本的路径，
+这个脚本通常用于启动、停止或重启 MySQL 服务。
+以下是使用 `chmod` 命令为 MySQL 服务脚本添加可执行权限的具体步骤：
+1. **拷贝服务文件**：需要将 MySQL 的服务文件拷贝到 `/etc/init.d/` 目录下，并将其重命名为 `mysqld`。这可以通过命令 `cp /usr/local/mysql/support-files/mysql.server /etc/init.d/mysqld` 完成。
+2. **赋予执行权限**：使用 `chmod +x /etc/init.d/mysqld` 命令为拷贝到 `/etc/init.d/` 目录下的 `mysqld` 文件添加可执行权限。
+3. **设置开机自启动**（可选）：如果你希望 MySQL 服务在系统启动时自动运行，可以将 `mysqld` 添加到系统的启动脚本中。
+这可以通过编辑 `/etc/rc.local` 文件并添加 `/etc/init.d/mysqld start` 实现。
+需要注意的是，在某些 Linux 发行版中，如 CentOS 7，可能会使用 `systemd` 来管理服务，而不是传统的 SysVinit 脚本。
+在这种情况下，你可能需要创建或修改 `systemd` 服务单元文件，而不是直接操作 `/etc/init.d/` 目录下的脚本。此外，
+如果遇到服务启动失败的问题，可以查看 `systemctl status mysqld.service` 和 `journalctl -xe` 命令的输出来获取详细信息。
+c、mysqld服务添加至系统服务
+执行命令：chkconfig --add mysqld
+d、查询mysqld服务
+执行命令chkconfig --list mysqld
+
+注：该输出结果只显示 SysV 服务，并不包含
+原生 systemd 服务。SysV 配置数据
+可能被原生 systemd 配置覆盖 
+要列出 systemd 服务，请执行 'systemctl list-unit-files'。
+查看在具体 target 启用的服务请执行
+'systemctl list-dependencies [target]'.
+mysqld          0:关    1:关    2:开    3:开    4:开    5:开    6:关
+e、启动 mysqld服务
+执行命令：service mysqld start
+3）开启防火墙
+a.启动 firewalld 服务：
+执行命令：systemctl start firewalld
+b.检查 firewalld 状态：
+执行命令：systemctl status firewalld
+如果服务已成功启动，你应该会看到类似 "active (running)" 的状态信息.
+4）开放端口
+a.添加端口
+执行命令：firewall-cmd --zone=public --add-port=3306/tcp --permanent
+b、重新加载
+执行命令：firewall-cmd --reload
+5）修改密码
+初次登录MySQL数据库需要重置密码才能继续后面的数据库操作，步骤如下：
+执行命令：mysql -uroot -p
+Enter password: 输入临时密码
+如：
+[root@iZ7xve0g1gz4tte7oyrzgiZ local]# mysql -uroot -p
+Enter password: 
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 8
+Server version: 8.0.36
+Copyright (c) 2000, 2024, Oracle and/or its affiliates.
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+#设置密码：
+mysql> alter user 'root'@'localhost' identified by '12345678';
+-> \q
+Bye
+6）允许远程连接
+MySQL数据库默认不允许远程连接，可通过如下步骤允许远程连接：
+执行命令：mysql -uroot -p
+Enter password: 输入密码
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 9
+Server version: 8.0.28 MySQL Community Server - GPL
+Copyright (c) 2000, 2022, Oracle and/or its affiliates.
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+#切换数据库
+mysql> use mysql;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+Database changed
+#修改host值
+mysql> update user set host = '%' where user = 'root' limit 1;
+Query OK, 1 row affected (0.00 sec)
+Rows matched: 1  Changed: 1  Warnings: 0
+#刷新权限
+mysql> flush privileges;
+Query OK, 0 rows affected (0.00 sec)
+mysql> \q
+Bye
+（五）Navicat客户端连接数据库
+客户端连接mysql数据库，连接名（自定义名称），主机（IP），端口号及用户名和密码，点击测试连接按钮，显示连接成功说明安装成功.

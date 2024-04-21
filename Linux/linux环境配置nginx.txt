@@ -1,0 +1,130 @@
+Linux环境下nginx安装和配置
+
+参考：
+https://mp.weixin.qq.com/s/CHY4VE3PvGB1TI6pSI9OHg
+
+1、下载nginx安装包
+下载地址：http://nginx.org/
+
+安装在/usr/local/nginx0322目录下
+Wget http://nginx.org/download/nginx-1.24.0.tar.gz
+
+2、安装nginx
+2.1、安装依赖库：
+
+Nginx的安装，需要Linux下安装相关的几个库，否则Nginx配置和编译时会出现错误。
+nginx依赖以下模块：gzip模块需要zlib库、rewrite模块需要pcre库、ssl 功能需要openssl库
+参数解释： gcc编译相关，openssl加密算法相关，xx-devel表示可以进行二次开发
+Nginx可以进行二次开发，我们可以修改它里面的东西或者扩展一些东西
+使用以下命令，安装依赖库：
+yum install gcc zlib zlib-devel pcre pcre-devel openssl openssl-devel -y
+
+完成提示：
+Installed:
+  keyutils-libs-devel-1.5.10-9.al8.x86_64        krb5-devel-1.18.2-25.0.1.al8.x86_64        libcom_err-devel-1.46.0-1.0.1.al8.x86_64        libkadm5-1.18.2-25.0.1.al8.x86_64             
+  libselinux-devel-2.9-8.2.al8.x86_64            libsepol-devel-2.9-3.0.1.al8.x86_64        libverto-devel-0.3.2-2.al8.x86_64               openssl-devel-1:1.1.1k-9.0.1.al8.x86_64       
+  pcre-cpp-8.42-6.0.1.al8.x86_64                 pcre-devel-8.42-6.0.1.al8.x86_64           pcre-utf16-8.42-6.0.1.al8.x86_64                pcre-utf32-8.42-6.0.1.al8.x86_64              
+  pcre2-devel-10.32-3.0.1.al8.x86_64             pcre2-utf16-10.32-3.0.1.al8.x86_64         pcre2-utf32-10.32-3.0.1.al8.x86_64              zlib-devel-1.2.11-20.9.al8.alnx.x86_64        
+
+Complete!
+
+2.2、解压安装包
+Tar -zxvf nginx-1.24.0.tar.gz
+2.3、使用configure配置nginx
+
+切换至nginx-1.24.0目录
+
+执行：./configure --prefix=/usr/local/nginx --with-http_ssl_module
+
+
+Configuration summary
+  + using system PCRE2 library
+  + using system OpenSSL library
+  + using system zlib library
+
+  nginx path prefix: "/usr/local/nginx"
+  nginx binary file: "/usr/local/nginx/sbin/nginx"
+  nginx modules path: "/usr/local/nginx/modules"
+  nginx configuration prefix: "/usr/local/nginx/conf"
+  nginx configuration file: "/usr/local/nginx/conf/nginx.conf"
+  nginx pid file: "/usr/local/nginx/logs/nginx.pid"
+  nginx error log file: "/usr/local/nginx/logs/error.log"
+  nginx http access log file: "/usr/local/nginx/logs/access.log"
+  nginx http client request body temporary files: "client_body_temp"
+  nginx http proxy temporary files: "proxy_temp"
+  nginx http fastcgi temporary files: "fastcgi_temp"
+  nginx http uwsgi temporary files: "uwsgi_temp"
+  nginx http scgi temporary files: "scgi_temp"
+2.4、执行编译命令：
+Make
+c语言编译打包完成后，会在xxx/nginx-1.18.0/objs下生成一个nginx可执行程序，此时，在/usr/local下还没生成nginx安装目录
+
+
+sed -e "s|%%PREFIX%%|/usr/local/nginx|" \
+	-e "s|%%PID_PATH%%|/usr/local/nginx/logs/nginx.pid|" \
+	-e "s|%%CONF_PATH%%|/usr/local/nginx/conf/nginx.conf|" \
+	-e "s|%%ERROR_LOG_PATH%%|/usr/local/nginx/logs/error.log|" \
+	< man/nginx.8 > objs/nginx.8
+make[1]: Leaving directory '/usr/local/nginx/nginx-1.24.0'
+2.5、执行安装
+执行以下命令进行安装：
+make install
+这一步骤之后，才是真正意义的完成了Nginx的安装，因为这一步，才会在刚才--prefix指定的安装路径/usr/local下，生成Nginx相关的目录
+[root@iZ7xve0g1gz4tte7oyrzgiZ nginx-1.24.0]# cd /usr/local/nginx
+[root@iZ7xve0g1gz4tte7oyrzgiZ nginx]# ll
+total 16
+drwxr-xr-x 2 root root 4096 Mar 22 23:52 conf
+drwxr-xr-x 2 root root 4096 Mar 22 23:52 html
+drwxr-xr-x 2 root root 4096 Mar 22 23:52 logs
+drwxr-xr-x 2 root root 4096 Mar 22 23:52 sbin
+
+添加开放80端口防火墙：
+firewall-cmd --zone=public --add-port=80/tcp --permanent
+执行 firewall-cmd --reload 重载防火墙配置使更改生效。
+[root@iZ7xve0g1gz4tte7oyrzgiZ conf]# firewall-cmd --zone=public --add-port=80/tcp --permanent
+Success
+[root@iZ7xve0g1gz4tte7oyrzgiZ conf]# firewall-cmd --reload
+Success
+
+配置防火墙：
+如果使用的是firewalld，需要执行 firewall-cmd --zone=public --add-port=80/tcp --permanent 命令来将80端口添加到公共区域并永久生效。
+执行 firewall-cmd --reload 重载防火墙配置使更改生效。
+3、验证成功
+浏览器输入IP地址，显示如下网页
+
+
+4、nginx命令总结
+3.1、启动nginx（两种方式）
+
+指定配置文件的方式启动
+A.默认方式启动
+进入可执行程序目录下：
+cd /usr/local/nginx/sbin
+直接执行Nginx二进制程序：
+./nginx
+也可以使用命令，直接启动：
+/usr/local/nginx/sbin/nginx（这种方式，默认使用/usr/local/nginx/conf/nginx.conf这个配置文件启动）
+B.指定配置文件的方式启动
+使用-c参数指定配置文件：
+/usr/local/nginx/sbin/nginx -c /usr/local/nginx/conf/nginx.conf
+
+
+安装成功后的Nginx可以用于多种项目实验，具体如下：
+
+静态网页服务器：Nginx非常适合用作静态资源的Web服务器。您可以将网站的HTML、CSS、JavaScript等文件放置在Nginx指定的目录下，然后通过配置Nginx来提供这些静态文件的服务。
+虚拟主机：通过Nginx，您可以在单一服务器上配置多个虚拟主机，每个虚拟主机可以服务于不同的网站或应用。这对于个人网站或小型企业网站来说是一个很好的解决方案，因为它可以节省成本并简化管理。
+反向代理与负载均衡：当网站访问量增大时，单台服务器可能无法满足所有的用户请求。这时，Nginx可以作为反向代理服务器，将客户端的请求分发到后端的多个服务器上，实现负载均衡。Nginx支持多种负载均衡策略，如轮询策略，您可以通过实验来了解和掌握这些策略的配置和应用。
+动态内容服务：虽然Nginx最初被设计为静态内容的Web服务器，但它也可以与像PHP这样的后端脚本语言配合工作，以服务动态内容。
+高可用性部署：您可以使用Nginx来构建高可用性的Web应用架构。例如，通过设置主从模式的Nginx服务器，可以提高服务的可靠性和稳定性。
+安全性测试：学习和实践如何使用Nginx来提高Web应用的安全性，例如通过配置HTTPS、限制访问频率等方法来保护网站免受攻击。
+性能调优：实验不同的Nginx配置选项，比如调整缓存设置、连接数限制等，来优化Nginx的性能。
+日志分析：学习如何利用Nginx的日志记录功能，进行访问日志的分析，从而更好地理解用户的访问模式和行为。
+跨域资源共享（CORS）：配置Nginx以处理跨域请求，这是现代Web应用中常见的需求，尤其是在前后端分离的架构中。
+WebSocket代理：Nginx也支持WebSocket协议，您可以实验如何配置Nginx来处理WebSocket连接，这对于实时通信类的应用非常有用。
+综上所述，通过这些项目实验，不仅能够加深对Nginx的理解，还能够提升您的网络系统管理和配置技能。在进行实验时，请确保您有足够的硬件资源，如内存大于4G、硬盘空间充足，并使用适当的软件环境，比如Linux系统。此外，实验过程中可能需要参考Nginx的官方文档或其他可靠的资源来帮助您完成配置和问题解决。
+
+举例：
+假设你正在开发一个在线聊天室应用程序，需要处理大量的用户请求和消息传输。为了提高聊天室的性能和稳定性，你可以使用Nginx作为你的Web服务器和反向代理服务器。
+首先，你需要将你的聊天室页面部署到Nginx服务器上，并配置好静态文件服务功能，使得用户可以通过URL访问到这个页面。然后，你可以使用Nginx的反向代理功能，将用户的请求转发给后端的服务器进行处理。这样，当用户在浏览器中输入你的聊天室地址时，Nginx会先接收到这个HTTP请求，然后将请求转发给后端的服务器，最后将服务器返回的结果返回给用户的浏览器显示。
+例如，当用户发送一条消息时，Nginx会将这个请求转发给后端的服务器，服务器会将这条消息广播给所有在线的用户，并将结果返回给Nginx，Nginx再将结果显示给用户的浏览器。同时，Nginx还可以根据服务器的负载情况自动进行负载均衡，确保每个服务器都能够合理地分配任务，提高整体的处理能力。
+总之，Nginx是一个非常强大的工具，可以帮助开发者轻松地搭建和管理Web应用程序，提供高效可靠的服务给用户。
